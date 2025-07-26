@@ -81,7 +81,7 @@
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Confirmar sua escolha?</h2>
             <p class="text-gray-600 mb-6">Você selecionou os seguintes presentes:</p>
             <ul id="selected-gifts-list" class="list-disc list-inside bg-gray-100 p-4 rounded-lg max-h-48 overflow-y-auto mb-6"></ul>
-            <p class="text-sm text-gray-500 mb-6">Ao confirmar, os itens serão marcados como escolhidos e você será redirecionado(a) para o WhatsApp.</p>
+            <p class="text-sm text-gray-500 mb-6">Ao confirmar, uma nova aba abrirá com o WhatsApp. Depois de enviar a mensagem, os itens serão marcados como escolhidos. <br><strong>(Se a aba não abrir, verifique se seu navegador a bloqueou).</strong></p>
             <div class="flex justify-end space-x-4">
                 <button id="cancel-button" class="px-6 py-2 rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 transition">Cancelar</button>
                 <button id="confirm-button" class="px-6 py-2 rounded-lg text-white bg-teal-600 hover:bg-teal-700 transition flex items-center">
@@ -108,32 +108,36 @@
     <script type="module">
         // Importar funções do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, query, onSnapshot, doc, updateDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, query, onSnapshot, doc, updateDoc, addDoc, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 1. CONFIGURAÇÃO DO FIREBASE (INSERIDA) ---
+        // --- 1. CONFIGURAÇÃO DO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDoaMvSxuZYY_ikqGMwTqSN6-QKbvqcaa8",
             authDomain: "enxovalcasanova-87db1.firebaseapp.com",
             projectId: "enxovalcasanova-87db1",
-            storageBucket: "enxovalcasanova-87db1.appspot.com", // Corrigido para .appspot.com
+            storageBucket: "enxovalcasanova-87db1.appspot.com",
             messagingSenderId: "867167528928",
             appId: "1:867167528928:web:3e00d62194b0db0ea36d85",
             measurementId: "G-P29Y6V7F1X"
         };
 
-        // --- 2. SCRIPT PARA POPULAR O BANCO DE DADOS (EXECUTAR UMA ÚNICA VEZ) ---
+        // --- 2. LISTA MESTRA DE PRESENTES ---
+        // Para adicionar novos itens, adicione-os aqui e depois execute a função syncGiftList() no console do navegador.
         const initialGiftData = [
             { category: "Cozinha", items: ["Abridor de latas", "Armário", "Assadeiras de alumínio", "Balcão para pia", "Batedeira", "Bule ou cafeteira", "Colher de arroz", "Colheres de chá e sobremesa", "Concha de feijão/sopa", "Conjunto de panelas (pequena, média e grande)", "Copos de vidro (grandes e médios)", "Cuscuzeira", "Descascador de legumes", "Escorredor de louça", "Escorredor de macarrão", "Escumadeira", "Espátulas de silicone", "Filtro de água", "Forma de pudim", "Forma redonda para bolo", "Frigideira antiaderente", "Funil", "Conjunto de facas", "Garrafa térmica", "Jarra para suco", "Lixeira de pia pequena", "Lixeira grande com tampa", "Liquidificador", "Mixer", "Multiprocessador", "Panela de pressão", "Panelas antiaderente", "Panos de prato (sem desenhos, apenas branco)", "Peneira (pequena e média)", "Pipoqueira", "Pia", "Porta-talheres", "Porta-temperos de bancada ou giratório", "Potes de vidro ou plástico (com tampa hermética)", "Potes grandes para arroz, açúcar, farinha, etc.", "Potes pequenos para temperos", "Pratos de sobremesa", "Pratos fundos", "Pratos rasos", "Ralador", "Rodinho de pia", "Sanduicheira", "Suporte para detergente/esponja", "Tábuas de corte", "Talheres (garfo, faca, colher de sopa e sobremesa) - preferência: inteiros, sem cabo de plástico ou emborrachado", "Tesoura de cozinha", "Travessa de vidro/refratário (tipo Marinex)", "Xícaras"] },
             { category: "Sala", items: ["Painel", "Televisão", "Almofadas", "Capas para almofadas", "Cortina", "Manta para sofá"] },
-            { category: "Quarto", note: "TAMANHO KING: 2,03m x 1,98m - Caso queira nos presentear com algum desses itens, se possível não escolher estampas ou cores muito chamativas, de preferência tons neutros ou pastéis, sem desenhos de bichos ou flores.", items: ["Ar-condicionado 110 inverter", "Cabides", "Cobertas", "Cortina", "Cobre-leito", "Edredom", "Fronha", "Guarda-roupa", "Lençol", "Peseira", "Pillow Top", "Travesseiro", "Ventilador"] },
+            { category: "Quarto", note: "Caso queira nos presentear com algum desses itens, se possível não escolher estampas ou cores muito chamativas, de preferência tons neutros ou pastéis, sem desenhos de bichos ou flores.", items: ["Ar-condicionado 110 inverter", "Cabides", "Cobertas", "Cortina", "Cobre-leito", "Edredom", "Fronha", "Guarda-roupa", "Lençol", "Peseira", "Pillow Top", "Travesseiro", "Ventilador"] },
             { category: "Limpeza e Organização", items: ["Aspirador", "Baldes", "Difusor", "Mop", "Pá de lixo", "Rodo", "Tábua de passar roupa", "Vassoura"] },
             { category: "Banheiro", items: ["Toalhas de banho", "Toalhas de rosto", "Balcão gabinete para banheiro", "Cuba de sobrepor", "Escova sanitária", "Espelho para banheiro", "Lixeira para banheiro", "Porta-sabonete líquido", "Porta-shampoo", "Saboneteira", "Tapetes para banheiro"] },
             { category: "Outros", items: ["Ferro de passar roupa", "Máquina de lavar"] }
         ];
 
-        window.populateFirestore = async () => {
+        // --- 3. FUNÇÕES DE ADMINISTRAÇÃO (para usar no console F12) ---
+
+        // Função para a configuração inicial do banco de dados (USAR SÓ UMA VEZ)
+        window.setupInitialList = async () => {
             const db = getFirestore();
-            console.log("Iniciando o carregamento dos dados para o Firestore...");
+            console.log("Iniciando a configuração inicial da lista...");
             let order = 0;
             const promises = initialGiftData.flatMap(category => 
                 category.items.map(item => 
@@ -148,16 +152,75 @@
             );
             try {
                 await Promise.all(promises);
-                alert("Lista de presentes carregada no banco de dados com sucesso!");
-                console.log("Dados carregados com sucesso!");
+                alert("Lista de presentes inicial carregada no banco de dados com sucesso!");
             } catch (error) {
                 console.error("Erro ao carregar os dados: ", error);
                 alert("Ocorreu um erro ao carregar a lista. Verifique o console.");
             }
         };
 
+        // Função para adicionar novos itens da lista acima ao banco de dados sem apagar os existentes.
+        window.syncGiftList = async () => {
+            const db = getFirestore();
+            console.log("Iniciando sincronização da lista...");
 
-        // --- 3. LÓGICA PRINCIPAL DO SITE ---
+            const localGiftNames = new Set();
+            const localGiftMap = new Map();
+            initialGiftData.forEach(category => {
+                category.items.forEach(item => {
+                    localGiftNames.add(item);
+                    localGiftMap.set(item, { category: category.category, note: category.note || null });
+                });
+            });
+
+            const giftsCol = collection(db, "gifts");
+            const q = query(giftsCol);
+            const snapshot = await getDocs(q);
+            const firestoreGifts = new Set();
+            let maxOrder = -1;
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                firestoreGifts.add(data.name);
+                if (data.order > maxOrder) {
+                    maxOrder = data.order;
+                }
+            });
+            
+            const itemsToAdd = [];
+            for (const name of localGiftNames) {
+                if (!firestoreGifts.has(name)) {
+                    const giftInfo = localGiftMap.get(name);
+                    maxOrder++;
+                    itemsToAdd.push({
+                        name: name,
+                        category: giftInfo.category,
+                        note: giftInfo.note,
+                        taken: false,
+                        order: maxOrder
+                    });
+                }
+            }
+
+            if (itemsToAdd.length === 0) {
+                alert("Nenhum item novo para adicionar. A lista já está sincronizada!");
+                return;
+            }
+
+            console.log(`Adicionando ${itemsToAdd.length} novo(s) item(ns)...`);
+            const promises = itemsToAdd.map(gift => addDoc(collection(db, "gifts"), gift));
+
+            try {
+                await Promise.all(promises);
+                alert(`${itemsToAdd.length} novo(s) presente(s) adicionado(s) com sucesso! A página será atualizada.`);
+                location.reload();
+            } catch (error) {
+                console.error("Erro ao adicionar novos itens: ", error);
+                alert("Ocorreu um erro ao adicionar os novos presentes. Verifique o console.");
+            }
+        };
+
+
+        // --- 4. LÓGICA PRINCIPAL DO SITE ---
         document.addEventListener('DOMContentLoaded', () => {
             const giftListContainer = document.getElementById('gift-list-container');
             const finalizeButton = document.getElementById('finalize-button');
@@ -172,7 +235,7 @@
             const loadingSpinner = document.getElementById('loading-spinner');
             const confirmText = document.getElementById('confirm-text');
 
-            let selectedGifts = {}; // { id: name, id: name }
+            let selectedGifts = {};
             let db;
 
             try {
@@ -181,10 +244,9 @@
                 const giftsCol = collection(db, "gifts");
                 const q = query(giftsCol, orderBy("order"));
 
-                // Escuta por atualizações em tempo real
                 onSnapshot(q, (snapshot) => {
                     if (snapshot.empty) {
-                        giftListContainer.innerHTML = `<p class="text-center text-gray-500">A lista de presentes está vazia. Se você for o dono do site, abra o console (F12) e execute <strong>populateFirestore()</strong> para carregar os itens.</p>`;
+                        giftListContainer.innerHTML = `<p class="text-center text-gray-500">A lista de presentes está vazia. Se você for o dono do site, abra o console (F12) e execute <strong>setupInitialList()</strong> para carregar os itens pela primeira vez.</p>`;
                     } else {
                         const allGifts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         renderGifts(allGifts);
@@ -307,6 +369,11 @@
                 loadingSpinner.classList.remove('hidden');
                 confirmText.classList.add('hidden');
 
+                const phoneNumber = "6699357985";
+                const giftText = Object.values(selectedGifts).map(name => `- ${name}`).join('\n');
+                const message = encodeURIComponent(`Olá, Yasmin e Gabriel! ✨\nGostaria de presentear vocês com os seguintes itens:\n\n${giftText}\n\nAbraços!`);
+                window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+
                 const updatePromises = Object.keys(selectedGifts).map(id => {
                     const giftRef = doc(db, "gifts", id);
                     return updateDoc(giftRef, { taken: true });
@@ -315,17 +382,12 @@
                 try {
                     await Promise.all(updatePromises);
                     
-                    const phoneNumber = "6699357985";
-                    const giftText = Object.values(selectedGifts).map(name => `- ${name}`).join('\n');
-                    const message = encodeURIComponent(`Olá, Yasmin e Gabriel! ✨\nGostaria de presentear vocês com os seguintes itens:\n\n${giftText}\n\nAbraços!`);
-                    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
-                    
                     selectedGifts = {};
                     toggleModal(confirmationModal, modalContent, false);
 
                 } catch (error) {
                     console.error("Erro ao atualizar os presentes: ", error);
-                    alert("Ocorreu um erro ao marcar os presentes. Por favor, tente novamente.");
+                    alert("Sua mensagem foi aberta no WhatsApp, mas ocorreu um erro ao marcar os presentes no site. Por favor, avisem os noivos!");
                 } finally {
                     confirmButton.disabled = false;
                     loadingSpinner.classList.add('hidden');
@@ -336,4 +398,3 @@
     </script>
 </body>
 </html>
-    
